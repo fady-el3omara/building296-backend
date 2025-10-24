@@ -80,5 +80,27 @@ from fastapi import FastAPI
 app = FastAPI()
 
 @app.get("/")
+from fastapi import UploadFile, File
+import pandas as pd
+from backend.database import init_db, SessionLocal
+from backend.import_from_excel import import_excel_data
+
+# Initialize DB once
+init_db()
+
+@app.post("/import_excel")
+async def import_excel(file: UploadFile = File(...)):
+    """Upload and import Excel data into the database"""
+    # Read the uploaded file into pandas
+    contents = await file.read()
+    df = pd.read_excel(contents)
+
+    # Use your helper function to insert into DB
+    db = SessionLocal()
+    import_excel_data(df, db)
+    db.close()
+
+    return {"status": "success", "rows_imported": len(df)}
+
 def read_root():
     return {"message": "Building 296 backend is live!"}
