@@ -25,7 +25,7 @@ app.add_middleware(
 )
 
 # --- Excel Import Endpoint ---
-@app.post("/import-excel")
+@app.api_route("/import-excel", methods=["GET", "POST"])
 def import_excel(month: str):
     """
     Import Excel data from the predefined file into the database.
