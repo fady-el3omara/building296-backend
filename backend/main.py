@@ -75,3 +75,10 @@ def export_wallet(ownerId: int, month: str):
     if not path:
         return {"error": "Nothing to export (no entries for that owner/month)."}
     return {"status": "ok", "file": path}
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"message": "Building 296 backend is live!"}
