@@ -123,3 +123,39 @@ def generate_variance(db: Session, month: str):
         if allow != 0: _wallet_add(db, o["ownerId"], month, "allowance_actual", "Allowance (actual)", abs(allow), "in")
     db.commit()
     return results
+from datetime import datetime
+from . import crud
+
+def calculate_owner_shares(db):
+    """
+    Calculate each owner's expected revenue distribution for the most recent month.
+
+    This summarizes what `crud.generate_expected_distribution()` stores,
+    but returns a clean JSON-friendly structure for your API endpoint.
+    """
+
+    # Determine the most recent month that has rent data
+    month_row = db.execute("SELECT DISTINCT month FROM rents ORDER BY month DESC LIMIT 1").fetchone()
+    if not month_row:
+        return {"message": "No rent data found."}
+
+    month = month_row[0]
+
+    # Generate expected distribution (updates DB + returns computed rows)
+    result_rows = crud.generate_expected_distribution(db, month)
+
+    # Also compute high-level totals
+    total_expected_rent = crud.expected_revenue(db, month)
+    total_expenses = crud.total_expenses(db, month)
+    distributable = total_expected_rent - total_expenses
+
+    return {
+        "month": month,
+        "generated_on": datetime.utcnow().isoformat(),
+        "summary": {
+            "total_expected_rent": round(total_expected_rent, 2),
+            "total_expenses": round(total_expenses, 2),
+            "distributable": round(distributable, 2)
+        },
+        "owners_distribution": result_rows
+    }
