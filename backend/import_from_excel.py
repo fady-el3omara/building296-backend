@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 # Default location on the server
-DEFAULT_EXCEL_PATH = "backend/data/latest.xlsx"
+DEFAULT_EXCEL_PATH = "backend/data/296_Shoubra_Phase2_Visual_Light (1).xlsx"
 
 
 # ----------------------------
