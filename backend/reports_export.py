@@ -23,3 +23,25 @@ def export_month_report(db_path: str, month: str, out_dir: str = "reports"):
 
     conn.close()
     return str(path), int(exp["ownerId"].nunique()) if not exp.empty else 0
+from sqlalchemy.orm import Session
+from . import crud
+
+def calculate_owner_shares(db: Session):
+    """
+    Calculates expected owner revenue distribution assuming all tenants paid.
+    Adjust this logic to match your actual owner–tenant structure.
+    """
+    owners = crud.get_all_owners(db)  # <-- adjust to your own crud function
+    tenants = crud.get_all_tenants(db)  # <-- adjust if you track tenants separately
+
+    # Example logic (replace with your real calculation):
+    owner_distribution = []
+    for owner in owners:
+        total_rent = sum([tenant.rent for tenant in tenants if tenant.owner_id == owner.id])
+        owner_distribution.append({
+            "owner_id": owner.id,
+            "owner_name": owner.name,
+            "expected_revenue": total_rent
+        })
+
+    return {"owners_distribution": owner_distribution}
