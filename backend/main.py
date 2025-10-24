@@ -29,21 +29,20 @@ app.add_middleware(
 
 
 # --- Excel Import Endpoint ---
-@app.post("/import_excel")
-async def import_excel(file: UploadFile = File(...)):
+@app.post("/import-excel")
+def import_excel(month: str):
     """
-    Upload and import Excel data into the database.
+    Import Excel data from the predefined file into the database.
     """
-    # Read uploaded file into pandas
-    contents = await file.read()
-    df = pd.read_excel(contents)
-
-    # Insert into DB
     db = SessionLocal()
-    import_excel_data(df, db)
+    summary = import_excel_data(
+        db,
+        month=month,
+        file_path="backend/data/296_Shoubra_Phase2_Visual_Light (1).xlsx"
+    )
     db.close()
+    return {"ok": True, "summary": summary}
 
-    return {"status": "success", "rows_imported": len(df)}
 
 
 # --- Owner Revenue Distribution Endpoint ---
