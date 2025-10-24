@@ -1,9 +1,8 @@
-from fastapi import FastAPI, Depends, UploadFile, File
+from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import datetime
-import pandas as pd
 import os
 
 # Local imports
@@ -13,10 +12,8 @@ from .reports_export import export_month_report, calculate_owner_shares
 from .wallets_export import export_wallet_ledger
 from .import_from_excel import import_excel_data
 
-
 # --- App Initialization ---
 app = FastAPI(title="Building 296 – Backend API (v6)")
-
 
 # --- CORS Middleware ---
 app.add_middleware(
@@ -26,7 +23,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # --- Excel Import Endpoint ---
 @app.post("/import-excel")
@@ -43,8 +39,6 @@ def import_excel(month: str):
     db.close()
     return {"ok": True, "summary": summary}
 
-
-
 # --- Owner Revenue Distribution Endpoint ---
 @app.get("/owners_distribution")
 def owners_distribution():
@@ -56,7 +50,6 @@ def owners_distribution():
     db.close()
     return result
 
-
 # --- Export Monthly Report Endpoint ---
 @app.get("/export_month_report")
 def export_month_report_endpoint():
@@ -65,7 +58,6 @@ def export_month_report_endpoint():
     """
     file_path = export_month_report()
     return FileResponse(file_path, filename="month_report.xlsx")
-
 
 # --- Export Wallet Ledger Endpoint ---
 @app.get("/export_wallet_ledger")
@@ -76,8 +68,8 @@ def export_wallet_ledger_endpoint():
     file_path = export_wallet_ledger()
     return FileResponse(file_path, filename="wallet_ledger.xlsx")
 
-
 # --- Root Endpoint ---
 @app.get("/")
 def read_root():
     return {"message": "Building 296 backend is live!"}
+
