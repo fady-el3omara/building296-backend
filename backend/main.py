@@ -1,15 +1,22 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, UploadFile, File
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from .database import SessionLocal
-from . import crud
-from .reports_export import export_month_report
-from .wallets_export import export_wallet_ledger
+from datetime import datetime
+import pandas as pd
 import os
 
-app = FastAPI(title="Building 296 — Backend API (v6)")
-from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
+# Local imports
+from .database import SessionLocal
+from . import crud
+from .reports_export import export_month_report, calculate_owner_shares
+from .wallets_export import export_wallet_ledger
+from .import_from_excel import import_excel_data
+
+
+# --- App Initialization ---
+app = FastAPI(title="Building 296 – Backend API (v6)")
+
 
 # --- CORS Middleware ---
 app.add_middleware(
@@ -20,96 +27,58 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "time": datetime.utcnow().isoformat()}
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-@app.get("/owners")
-def owners(db: Session = Depends(get_db)):
-    return crud.list_owners(db)
-
-@app.get("/rents/{month}")
-def rents(month: str, db: Session = Depends(get_db)):
-    return crud.list_rents_by_month(db, month)
-
-@app.get("/forecast/{month}")
-def forecast_total(month: str, db: Session = Depends(get_db)):
-    return {"month": month, "expectedRevenue": crud.expected_revenue(db, month)}
-
-@app.post("/forecast/distribution/{month}")
-def forecast_distribution(month: str, db: Session = Depends(get_db)):
-    return crud.generate_expected_distribution(db, month)
-
-@app.post("/variance/{month}")
-def variance(month: str, db: Session = Depends(get_db)):
-    return crud.generate_variance(db, month)
-
-@app.post("/reports/export/{month}")
-def export_report(month: str):
-    path, owners_count = export_month_report("../schema/building296.db", month, out_dir="reports")
-    return {"status": "ok", "file": path, "owners": owners_count}
-
-@app.get("/reports/download/{month}")
-def download_report(month: str):
-    file_path = f"reports/Building296_Report_{month}.xlsx"
-    if not os.path.exists(file_path):
-        return {"error": f"Report not found for {month}. Please run /reports/export/{month} first."}
-    return FileResponse(path=file_path, filename=os.path.basename(file_path), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-@app.get("/wallets/{ownerId}/{month}")
-def get_wallet(ownerId: int, month: str, db: Session = Depends(get_db)):
-    entries, balance, prior_balance = crud.wallet_entries(db, ownerId, month)
-    return {"ownerId": ownerId, "month": month, "priorBalance": prior_balance, "entries": entries, "endingBalance": balance}
-
-@app.post("/wallets/export/{ownerId}/{month}")
-def export_wallet(ownerId: int, month: str):
-    path = export_wallet_ledger("../schema/building296.db", ownerId, month, out_dir="reports")
-    if not path:
-        return {"error": "Nothing to export (no entries for that owner/month)."}
-    return {"status": "ok", "file": path}
-from fastapi import FastAPI
-
-app = FastAPI()
-
-@app.get("/")
-from fastapi import UploadFile, File
-import pandas as pd
-from backend.database import init_db, SessionLocal
-from backend.import_from_excel import import_excel_data
-
-# Initialize DB once
-init_db()
-
+# --- Excel Import Endpoint ---
 @app.post("/import_excel")
 async def import_excel(file: UploadFile = File(...)):
-    """Upload and import Excel data into the database"""
-    # Read the uploaded file into pandas
+    """
+    Upload and import Excel data into the database.
+    """
+    # Read uploaded file into pandas
     contents = await file.read()
     df = pd.read_excel(contents)
 
-    # Use your helper function to insert into DB
+    # Insert into DB
     db = SessionLocal()
     import_excel_data(df, db)
     db.close()
 
     return {"status": "success", "rows_imported": len(df)}
-from backend.reports_export import calculate_owner_shares
 
+
+# --- Owner Revenue Distribution Endpoint ---
 @app.get("/owners_distribution")
 def owners_distribution():
-    """Return expected owner revenue distribution assuming all tenants paid"""
+    """
+    Return expected owner revenue distribution assuming all tenants paid.
+    """
     db = SessionLocal()
     result = calculate_owner_shares(db)
     db.close()
     return result
 
+
+# --- Export Monthly Report Endpoint ---
+@app.get("/export_month_report")
+def export_month_report_endpoint():
+    """
+    Export the monthly report as an Excel file.
+    """
+    file_path = export_month_report()
+    return FileResponse(file_path, filename="month_report.xlsx")
+
+
+# --- Export Wallet Ledger Endpoint ---
+@app.get("/export_wallet_ledger")
+def export_wallet_ledger_endpoint():
+    """
+    Export wallet ledger as an Excel file.
+    """
+    file_path = export_wallet_ledger()
+    return FileResponse(file_path, filename="wallet_ledger.xlsx")
+
+
+# --- Root Endpoint ---
+@app.get("/")
 def read_root():
     return {"message": "Building 296 backend is live!"}
