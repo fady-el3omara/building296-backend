@@ -101,6 +101,15 @@ async def import_excel(file: UploadFile = File(...)):
     db.close()
 
     return {"status": "success", "rows_imported": len(df)}
+from backend.reports_export import calculate_owner_shares
+
+@app.get("/owners_distribution")
+def owners_distribution():
+    """Return expected owner revenue distribution assuming all tenants paid"""
+    db = SessionLocal()
+    result = calculate_owner_shares(db)
+    db.close()
+    return result
 
 def read_root():
     return {"message": "Building 296 backend is live!"}
