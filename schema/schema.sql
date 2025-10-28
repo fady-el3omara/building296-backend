@@ -125,9 +125,3 @@ CREATE TABLE IF NOT EXISTS import_log (
     status TEXT,
     timestamp TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
-  amount REAL NOT NULL,
-  direction TEXT NOT NULL, -- 'in' or 'out'
-  createdOn TEXT NOT NULL,
-  FOREIGN KEY (ownerId) REFERENCES owners(ownerId)
-);
