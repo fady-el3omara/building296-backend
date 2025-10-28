@@ -35,3 +35,9 @@ def verify_token(token: str):
         return username
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+from fastapi import Depends
+
+def get_current_admin(token: str = Depends(oauth2_scheme)):
+    """Reusable dependency for protected routes."""
+    verify_token(token)
+    return {"username": "admin"}
