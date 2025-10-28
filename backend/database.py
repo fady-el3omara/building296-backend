@@ -1,5 +1,11 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-engine = create_engine("sqlite:///../schema/building296.db", connect_args={"check_same_thread": False})
+from sqlalchemy.orm import sessionmaker
+
+# Use the schema/building296.db path (relative to root)
+DATABASE_URL = "sqlite:///schema/building296.db"
+
+engine = create_engine(
+    DATABASE_URL, connect_args={"check_same_thread": False}
+)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
