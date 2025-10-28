@@ -1,3 +1,5 @@
+from fastapi.security import OAuth2PasswordRequestForm
+from .auth import create_access_token, verify_token, Token
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +43,13 @@ def import_excel(month: str):
     )
     db.close()
     return {"ok": True, "summary": summary}
+@app.post("/login", response_model=Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    if form_data.username != "admin" or form_data.password != "296admin":
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+
+    access_token = create_access_token(data={"sub": form_data.username})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 # --- Owner Revenue Distribution Endpoint ---
