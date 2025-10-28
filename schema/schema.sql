@@ -1,94 +1,131 @@
+-- ===========================================================
+-- Building 296 – Core Database Schema
+-- ===========================================================
+-- Works for SQLite, PostgreSQL, or MySQL with minor tweaks.
+-- Author: ChatGPT (for Building 296 App)
+-- ===========================================================
+
 PRAGMA foreign_keys = ON;
 
+-- ===========================================================
+-- 1. OWNERS
+-- ===========================================================
 CREATE TABLE IF NOT EXISTS owners (
-  ownerId       INTEGER PRIMARY KEY AUTOINCREMENT,
-  name          TEXT NOT NULL,
-  shareHeld     REAL NOT NULL,
-  bankAccount   TEXT,
-  email         TEXT
+    ownerId INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    shareHeld REAL NOT NULL DEFAULT 0.0,
+    phone TEXT,
+    email TEXT
 );
 
-CREATE TABLE IF NOT EXISTS units (
-  unitId        INTEGER PRIMARY KEY AUTOINCREMENT,
-  unitNumber    TEXT NOT NULL,
-  tenantName    TEXT,
-  startDate     TEXT,
-  baseRent      REAL NOT NULL,
-  annualIncrease REAL,
-  status        TEXT DEFAULT 'Active'
-);
-
+-- ===========================================================
+-- 2. RENTS
+-- ===========================================================
 CREATE TABLE IF NOT EXISTS rents (
-  rentId        INTEGER PRIMARY KEY AUTOINCREMENT,
-  month         TEXT NOT NULL,
-  unitId        INTEGER NOT NULL,
-  effectiveRent REAL NOT NULL,
-  paidAmount    REAL NOT NULL DEFAULT 0.0,
-  discount      REAL NOT NULL DEFAULT 0.0,
-  arrearsBF     REAL NOT NULL DEFAULT 0.0,
-  ownerFundedBy INTEGER,
-  status        TEXT DEFAULT 'Pending',
-  notes         TEXT,
-  FOREIGN KEY (unitId) REFERENCES units(unitId) ON DELETE CASCADE,
-  FOREIGN KEY (ownerFundedBy) REFERENCES owners(ownerId) ON DELETE SET NULL
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unitNumber TEXT,
+    tenantName TEXT,
+    month TEXT NOT NULL,
+    effectiveRent REAL DEFAULT 0.0,
+    paidAmount REAL DEFAULT 0.0,
+    paymentDate TEXT,
+    notes TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_rents_unitId ON rents(unitId);
-CREATE INDEX IF NOT EXISTS idx_rents_month ON rents(month);
+CREATE INDEX IF NOT EXISTS idx_rents_month ON rents (month);
 
+-- ===========================================================
+-- 3. EXPENSES
+-- ===========================================================
 CREATE TABLE IF NOT EXISTS expenses (
-  expenseId     INTEGER PRIMARY KEY AUTOINCREMENT,
-  date          TEXT NOT NULL,
-  month         TEXT NOT NULL,
-  description   TEXT NOT NULL,
-  amount        REAL NOT NULL,
-  recurring     INTEGER NOT NULL DEFAULT 0,
-  ownerSpecific INTEGER NOT NULL DEFAULT 0,
-  chargedOwner  INTEGER,
-  type          TEXT,
-  notes         TEXT,
-  FOREIGN KEY (chargedOwner) REFERENCES owners(ownerId) ON DELETE SET NULL
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    description TEXT,
+    amount REAL DEFAULT 0.0,
+    month TEXT NOT NULL,
+    paidBy TEXT,
+    category TEXT,
+    ownerSpecific INTEGER DEFAULT 0,   -- 0 = shared, 1 = owner-specific
+    chargedOwner INTEGER,
+    FOREIGN KEY(chargedOwner) REFERENCES owners(ownerId)
 );
 
-CREATE INDEX IF NOT EXISTS idx_expenses_month ON expenses(month);
+CREATE INDEX IF NOT EXISTS idx_expenses_month ON expenses (month);
 
+-- ===========================================================
+-- 4. OWNER ALLOWANCES
+-- ===========================================================
 CREATE TABLE IF NOT EXISTS owner_allowances (
-  allowanceId   INTEGER PRIMARY KEY AUTOINCREMENT,
-  month         TEXT NOT NULL,
-  ownerId       INTEGER NOT NULL,
-  allowanceValue REAL NOT NULL,
-  notes         TEXT,
-  FOREIGN KEY (ownerId) REFERENCES owners(ownerId) ON DELETE CASCADE
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ownerId INTEGER,
+    month TEXT NOT NULL,
+    allowanceType TEXT,
+    allowanceValue REAL DEFAULT 0.0,
+    notes TEXT,
+    FOREIGN KEY(ownerId) REFERENCES owners(ownerId)
 );
 
+CREATE INDEX IF NOT EXISTS idx_owner_allowances_month ON owner_allowances (month);
+
+-- ===========================================================
+-- 5. EXPECTED DISTRIBUTION (Forecasted Earnings)
+-- ===========================================================
 CREATE TABLE IF NOT EXISTS expected_distribution (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  month TEXT NOT NULL,
-  ownerId INTEGER NOT NULL,
-  expectedRent REAL NOT NULL,
-  expectedExpenses REAL NOT NULL,
-  expectedNet REAL NOT NULL,
-  generatedOn TEXT NOT NULL,
-  FOREIGN KEY (ownerId) REFERENCES owners(ownerId)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ownerId INTEGER NOT NULL,
+    month TEXT NOT NULL,
+    expectedRent REAL DEFAULT 0.0,
+    expectedExpenses REAL DEFAULT 0.0,
+    expectedNet REAL DEFAULT 0.0,
+    generatedOn TEXT NOT NULL,
+    FOREIGN KEY(ownerId) REFERENCES owners(ownerId)
 );
 
+CREATE INDEX IF NOT EXISTS idx_expected_distribution_month ON expected_distribution (month);
+
+-- ===========================================================
+-- 6. VARIANCE REPORT (Actual vs Expected)
+-- ===========================================================
 CREATE TABLE IF NOT EXISTS variance_report (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  month TEXT NOT NULL,
-  ownerId INTEGER NOT NULL,
-  expectedNet REAL NOT NULL,
-  actualNet REAL NOT NULL,
-  variance REAL NOT NULL,
-  generatedOn TEXT NOT NULL,
-  FOREIGN KEY (ownerId) REFERENCES owners(ownerId)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ownerId INTEGER NOT NULL,
+    month TEXT NOT NULL,
+    expectedNet REAL DEFAULT 0.0,
+    actualNet REAL DEFAULT 0.0,
+    variance REAL DEFAULT 0.0,
+    generatedOn TEXT NOT NULL,
+    FOREIGN KEY(ownerId) REFERENCES owners(ownerId)
 );
 
+CREATE INDEX IF NOT EXISTS idx_variance_report_month ON variance_report (month);
+
+-- ===========================================================
+-- 7. OWNER WALLETS (Ledger System)
+-- ===========================================================
 CREATE TABLE IF NOT EXISTS owner_wallets (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ownerId INTEGER NOT NULL,
-  month TEXT NOT NULL,
-  entryType TEXT NOT NULL,
-  description TEXT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ownerId INTEGER NOT NULL,
+    month TEXT NOT NULL,
+    entryType TEXT NOT NULL,
+    description TEXT,
+    amount REAL NOT NULL,
+    direction TEXT CHECK(direction IN ('in', 'out')),
+    createdOn TEXT NOT NULL,
+    FOREIGN KEY(ownerId) REFERENCES owners(ownerId)
+);
+
+CREATE INDEX IF NOT EXISTS idx_owner_wallets_owner_month ON owner_wallets (ownerId, month);
+
+-- ===========================================================
+-- 8. META / LOGS (optional utility)
+-- ===========================================================
+CREATE TABLE IF NOT EXISTS import_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sheetName TEXT,
+    rowsInserted INTEGER,
+    status TEXT,
+    timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
   amount REAL NOT NULL,
   direction TEXT NOT NULL, -- 'in' or 'out'
   createdOn TEXT NOT NULL,
