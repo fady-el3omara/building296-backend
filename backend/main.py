@@ -1,3 +1,5 @@
+from .auth import get_current_admin
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from .auth import create_access_token, verify_token, Token
 from fastapi import FastAPI
